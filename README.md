@@ -40,7 +40,7 @@ Syntax:
 >colour( isBW=False, symbColor="#000000", symbTextColor="#42f5aa", symbAttrColor="#f59e42", symbPinColor="#8742f5", symbFillColor="#fff9eb", flagColor="#77fc03", gndColor="#fc0352", comColor="#03bafc", wireColor="#524e63", intsecColor="#0000ff", textColor="#eb3464", busTapColor="#ec03fc")
 
 Example:
-> from ltspice2svg import *
+> from ltspice2svg import * <br>
 > colour (gndColor ="#20fc03",  comColor ="#00bbff")
 
 `There is a special variable in colour settings described as follows which holds a special importance:`
@@ -70,7 +70,7 @@ Syntax:
 >setFont (fontSize=12, fontWeight="bold", fontFamily="Tahoma", flagFontSize=10, pinFontSize=6, pinFontWeight="normal", pinFontFamily="Arial")
 
 Example:
-> from ltspice2svg import *
+> from ltspice2svg import * <br>
 > setFont (fontSize  =12, pinFontWeight  ='Normal', fontFamily  ="SimSun")
 
 `For all font sizes any integer value from 1 to 144 are acceptable. Font weight can be either 'Normal' or 'Bold'. Also font family can be any font from those mentioned below:`
@@ -99,7 +99,7 @@ Syntax:
 > setPen (lineWidth=0.3, ISside=4, PPradius=2)
 
 Example:
-> from ltspice2svg import *
+> from ltspice2svg import * <br>
 > setPen (width =0.6)
 
 `All three parameters can be Float or Integer value with  stroke width, junction square side, pin circle radius from 0 to 5, 1 to 20 and 1 to 20 respectively.`
@@ -111,5 +111,5 @@ Syntax:
 > draw (spiceFileAddress, saveAddress)
 
 Example:
-> from ltspice2svg import *
+> from ltspice2svg import * <br>
 > draw (r'starter.asc', r'schematic.svg')
