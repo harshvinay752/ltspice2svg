@@ -41,12 +41,14 @@ Syntax:
 
 Example:
 > from ltspice2svg import *
->  colour (gndColor ="#20fc03",  comColor ="#00bbff")
+> colour (gndColor ="#20fc03",  comColor ="#00bbff")
 
 `There is a special variable in colour settings described as follows which holds a special importance:`
 |Variable|Default Value|Description|
 |--|--|--|
 |isBW|False|If isBW is set to True then all colors are set to Black, hence generating Black and White SVGs.
+
+
 `For all color variables any valid hex-coded color value is acceptable, wheras for isBW only Boolean values are accepted.`
 
 
