@@ -188,19 +188,15 @@ class font_width:
 
 def updateGlobalSize(minx, miny, maxx,maxy):
     global globalSize
-    #print("{} {} {} {}".format(minx, miny, maxx, maxy))
-    
     globalSize=(min([globalSize[0],minx]), min([globalSize[1],miny]), max([globalSize[2],maxx]), max([globalSize[3],maxy]))
-    #print("=> {} {} {} {}".format(globalSize[0], globalSize[1], globalSize[2], globalSize[3]))
-
+    
 def _line(ix,iy,fx,fy,colour,dash='none'):
     #i=initial and f=final
     dwg.add(dwg.line((ix,iy), (fx,fy), stroke=colour,fill='none',stroke_width=width,stroke_dasharray='{dashes}'.format(dashes=dash)))
     updateGlobalSize(min([ix,fx]), min([iy,fy]), max([ix,fx]), max([iy,fy]))
-    
-
 
 def _arc(cx1,cy1,cx2,cy2,ix,iy,fx,fy,colour,dash='none'):
+
     #example
 
     #ARC Normal 0 64 32 96 16 96 4 68
@@ -273,7 +269,6 @@ def _spot(x,y,colour):
     updateGlobalSize(x-pin_spot_radius/2, y-pin_spot_radius/2,x+pin_spot_radius/2,y+pin_spot_radius/2)
     
 def _text(x,y,string,size,weight,family,rAngle,colour):
-    
     str_lines=string.split("\\n")
     delta_y=0
     max_width=0
@@ -294,7 +289,6 @@ def _container(new1,new2,current_Max,current_Min):
         new_max_min[0]=maxC
     if current_Min>minC:
         new_max_min[1]=minC
-        
     return(new_max_min)
 
 def _close(x):
@@ -306,7 +300,6 @@ def _close(x):
         return(x2)
 
 def _tw_in_px(text,family,size,weight): #text width in pixel, size in px from 1 to 144, weight only normal or bold
-    
     filer=open(sysPath+r'\Resource\widths\\'+str(size)+'.dat','rb')
     try:
         while True:
@@ -325,7 +318,6 @@ def _tw_in_px(text,family,size,weight): #text width in pixel, size in px from 1 
     for character in text:
         width+=(widths[character])
     return(width)#-len(text)*0.5)
-    
 class Coordinate: #Coordinates are in px
     def __init__(self,x=0,y=0):
         self.x=x
@@ -425,6 +417,10 @@ def _leftBottomC(coordinate,textAlignment,textSize,tw):
     elif textAlignment=='VBottom':
         #rightMidC=Coordinate
         leftBottom=Coordinate(coordinate.getX(),coordinate.getY()+tw*0.5)
+    elif textAlignment=='Invisible':
+        #leftMidC=Coordinate
+        leftBottom=Coordinate(coordinate.getX(),coordinate.getY())
+    
     return(leftBottom)
 
 def _pinOffsetC(pinLoc,offset,alignment):
@@ -591,7 +587,6 @@ def _DirFlag(Point,ContainerMax,ContainerMin,directionIndex,flagColour):
 
     
 def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
-    
     lines=[]
     global pIntsecLocations
     #windows={} #attribute_index:Window
@@ -727,8 +722,6 @@ def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
                         i+=1
                 except IndexError:
                     textString=textString[:-1]
-
-
                 tw=_tw_in_px(textString,font_family,_close(textSize),font_weight)
                 textAlignment=z[3]
                 leftBottom=_leftBottomC(symbAttrC,textAlignment,textSize,tw)
@@ -757,10 +750,7 @@ def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
                 except NameError:
                     containerXmax=max(leftBottom.getX(),leftBottom.getX()+horz)
                     containerXmin=min(leftBottom.getX(),leftBottom.getX()+horz)
-                    
                 _text(leftBottom.getX(),leftBottom.getY(),textString,textSize*4.0/3.0,font_weight,font_family,rAngle,symbTextColor_) #some discripancy here textSize should be in px but given in pt units appears as px
-                        
-                    
             elif "WINDOW"==z[0]:
                 windowIndex=list(windows.keys())
                 if int(z[1]) not in windowIndex:
@@ -783,7 +773,6 @@ def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
                                 i+=1
                         except IndexError:
                             textString=textString[:-1]
-                            
                     tw=_tw_in_px(textString,font_family,textSize,font_weight)
                     leftBottom=_leftBottomC(coordinate,alignment,textSize,tw)
                     if alignment[0]!='V':
@@ -842,9 +831,6 @@ def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
                         if isHeadLine:
                             _HeadlineText(leftBottom,tw,pin_font_size,pinAlignment,symbPinColor_)
         index+=1
-        
-    
-    
 def _refineLine(line):
     out=''
     for char in line:
@@ -860,12 +846,10 @@ def draw(spiceFile,saveAddress):
     
     globalSize=(math.inf, math.inf, -math.inf, -math.inf)
     
-    
     pIntsecLocations={}
     pIntsecDirections={}
     nGnCflags={}
     linecache.clearcache()
-    
     dwg = svgwrite.Drawing(saveAddress, profile='tiny')
     lineNo=1
     with open(spiceFile,'r') as firstfile, open(r'temp.txt','w') as secondfile:
@@ -874,10 +858,8 @@ def draw(spiceFile,saveAddress):
     firstfile.close()
     secondfile.close()
     try:
-        
         while True:
             x=linecache.getline(r'temp.txt',lineNo)
-            
             if x!="":
                 if x[-1]=='\n':
                     z=x[:-1].split(' ')
@@ -911,49 +893,50 @@ def draw(spiceFile,saveAddress):
                             break
                     
                     if os.path.exists(filePath):
-                        symbC=Coordinate(-float(z[2]),-float(z[3]))
-                        orientation=z[4]
-                        if orientation[0]=='M':
-                            isMirror=True
-                        else:
-                            isMirror=False
-                        rAngle=int(orientation[1:])
-                        windows={}
-                        values={}
-                        lineNo+=1
-                        x=linecache.getline(r'temp.txt',lineNo)
-                        try:
-                            if x[-1]=='\n':
-                                z=x[:-1].split(' ')
-                            else:
-                                z=x.split(' ')
-                        except IndexError:
-                            break
-                        while z[0]=='WINDOW' or z[0]=='SYMATTR':
-                            if z[0]=='WINDOW':
-                                windows[int(z[1])]=Window(Coordinate(float(z[2]),float(z[3])),z[4],int(z[5]))
-                            elif z[0]=='SYMATTR':
-                                AttributeIndicesX={'InstName':0,'Value':3,'SpiceModel':38,'Value2':123,'SpiceLine':39,'SpiceLine2':40,'Type':1}
-                                attributeValue=''
-                                i=2
-                                try:
-                                    while True:
-                                        attributeValue+=(z[i]+' ')
-                                        i+=1
-                                except IndexError:
-                                    attributeValue=attributeValue[:-1]
-                                values[AttributeIndicesX[z[1]]]=attributeValue
-                            lineNo+=1
-                            x=linecache.getline(r'temp.txt',lineNo)
-                            try:
-                                if x[-1]=='\n':
-                                    z=x[:-1].split(' ')
-                                else:
-                                    z=x.split(' ')
-                            except IndexError:
-                                break
-                        lineNo-=2
-                        _symb(symbC,rAngle,isMirror,windows,values,filePath)
+	                    symbC=Coordinate(-float(z[2]),-float(z[3]))
+	                    orientation=z[4]
+	                    if orientation[0]=='M':
+	                        isMirror=True
+	                    else:
+	                        isMirror=False
+	                    rAngle=int(orientation[1:])
+	                    windows={}
+	                    values={}
+	                    lineNo+=1
+	                    x=linecache.getline(r'temp.txt',lineNo)
+	                    try:
+	                        if x[-1]=='\n':
+	                            z=x[:-1].split(' ')
+	                        else:
+	                            z=x.split(' ')
+	                    except IndexError:
+	                        break
+	                    while z[0]=='WINDOW' or z[0]=='SYMATTR':
+	                        if z[0]=='WINDOW':
+	                            windows[int(z[1])]=Window(Coordinate(float(z[2]),float(z[3])),z[4],int(z[5]))
+	                        elif z[0]=='SYMATTR':
+	                            AttributeIndicesX={'InstName':0,'Value':3,'SpiceModel':38,'Value2':123,'SpiceLine':39,'SpiceLine2':40,'Type':1}
+	                            attributeValue=''
+	                            i=2
+	                            try:
+	                                while True:
+	                                    attributeValue+=(z[i]+' ')
+	                                    i+=1
+	                            except IndexError:
+	                                attributeValue=attributeValue[:-1]
+								if z[1] in AttributeIndicesX:
+	                            	values[AttributeIndicesX[z[1]]]=attributeValue
+	                        lineNo+=1
+	                        x=linecache.getline(r'temp.txt',lineNo)
+	                        try:
+	                            if x[-1]=='\n':
+	                                z=x[:-1].split(' ')
+	                            else:
+	                                z=x.split(' ')
+	                        except IndexError:
+	                            break
+	                    lineNo-=2
+	                    _symb(symbC,rAngle,isMirror,windows,values,filePath)
                 elif z[0]=='TEXT':
                     textLoc=Coordinate(float(z[1]),float(z[2]))
                     textAlignment=z[3]
@@ -1006,4 +989,3 @@ def draw(spiceFile,saveAddress):
     dwg.viewbox(*bb)
     dwg.save()
     os.remove(r'temp.txt')
-    return globalSize
