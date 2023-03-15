@@ -1,10 +1,19 @@
-# ltspice2svg 2021.01
+# ltspice2svg 2023.01
 
 Many times engineers need high resolution images of LTspice schematics. Specially in case of large schematics, the inbuilt option of 'Copy to Clipboard' picks up raster images which are uneasy to use.
 Also in case of using schematics in Documents, the raster images are not good to render.
 
 This tool can be used to convert LTspice schematic .asc files to SVG files, which can then  be fine tuned for beautiful schematics.
 
+## What's new 2023.01
+- Fix text positioning
+- Fix computation of global bounding box to display svg
+- Add background color and directive text color
+
+## What's new in 2022.01
+- Fix https://github.com/harshvinay752/ltspice2svg/issues/5
+- Fix https://github.com/harshvinay752/ltspice2svg/issues/6
+- Fix https://github.com/harshvinay752/ltspice2svg/issues/7
 
 # Words of Developer
 
@@ -37,7 +46,7 @@ Function called 'colour' can be used to manipulate the colors.
 
 Syntax:
 
->colour( isBW=False, symbColor="#000000", symbTextColor="#42f5aa", symbAttrColor="#f59e42", symbPinColor="#8742f5", symbFillColor="#fff9eb", flagColor="#77fc03", gndColor="#fc0352", comColor="#03bafc", wireColor="#524e63", intsecColor="#0000ff", textColor="#eb3464", busTapColor="#ec03fc")
+>colour( isBW=False, bgColor="#FFFFFF", directiveColor="#000000", symbColor="#000000", symbTextColor="#42f5aa", symbAttrColor="#f59e42", symbPinColor="#8742f5", symbFillColor="#fff9eb", flagColor="#77fc03", gndColor="#fc0352", comColor="#03bafc", wireColor="#524e63", intsecColor="#0000ff", textColor="#eb3464", busTapColor="#ec03fc")
 
 Example:
 > from ltspice2svg import * <br>

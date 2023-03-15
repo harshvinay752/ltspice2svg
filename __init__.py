@@ -4,6 +4,8 @@ import pickle
 import linecache
 import os
 import string as st
+import xml.etree.ElementTree as ET
+import glob
 
 sysPath=os.path.dirname(os.path.abspath(__file__)[:-11])
 __all__=['colour','draw','setFont','font_width']
@@ -24,6 +26,7 @@ pin_font_size=round(pin_font_size_pt*4.0/3.0,4) #px
 pin_font_weight="normal"
 pin_font_family="Arial"
 
+bgColor_="#FFFFFF"
 symbColor_="#000000"
 symbTextColor_="#42f5aa"
 symbAttrColor_="#f59e42"
@@ -36,6 +39,7 @@ wireColor_="#524e63"
 intsecColor_="#0000ff"
 textColor_="#eb3464"
 busTapColor_="#ec03fc"
+directiveColor_="#000000"
 
 fontFamilies=["Arial","Bahnschrift","Calibri","Cambria","Candara","Comic Sans MS","Consolas","Constantia","Corbel","Courier New","Ebrima","Franklin Gothic Medium","Gabriola","Gadugi","Impact","Ink Free","Javanese Text","Leelawadee UI","Lucida Console","Malgun Gothic","Microsoft Himalaya","Mongolian Baiti","MS Gothic","MV Boli","Myanmar Text","Nirmala UI","Segoe Print","SimSun","Sitka Text","Sylfaen","Tahoma","Times New Roman","Trebuchet MS"]
 fontString=""
@@ -119,9 +123,10 @@ def checkColor(color):
             return(False)
             
 
-def colour(isBW=False,symbColor="#000000",symbTextColor="#42f5aa",symbAttrColor="#f59e42",symbPinColor="#8742f5",symbFillColor="#fff9eb",flagColor="#77fc03",gndColor="#fc0352",comColor="#03bafc",wireColor="#524e63",intsecColor="#0000ff",textColor="#eb3464",busTapColor="#ec03fc"):
+def colour(isBW=False,bgColor="#FFFFFF",directivColor="#000000", symbColor="#000000",symbTextColor="#42f5aa",symbAttrColor="#f59e42",symbPinColor="#8742f5",symbFillColor="#fff9eb",flagColor="#77fc03",gndColor="#fc0352",comColor="#03bafc",wireColor="#524e63",intsecColor="#0000ff",textColor="#eb3464",busTapColor="#ec03fc"):
     global symbColor_,symbTextColor_,symbAttrColor_,symbPinColor_,symbFillColor_
     global flagColor_,gndColor_,comColor_,wireColor_,intsecColor_,textColor_,busTapColor_
+    global bgColor_, directivColor_              
 
     if type(isBW)!=bool:
         raise(ValueError("isBW (is Black and White) parameter must be either True and False. If isBW is set to True then other parameters have no effect."))
@@ -137,6 +142,7 @@ def colour(isBW=False,symbColor="#000000",symbTextColor="#42f5aa",symbAttrColor=
             raise(ValueError("Inappropriate "+colorNames[i]+"."))
         
     if isBW:
+        bgColor_="#FFFFFF"
         symbColor_="#000000"
         symbTextColor_="#000000"
         symbAttrColor_="#000000"
@@ -149,7 +155,9 @@ def colour(isBW=False,symbColor="#000000",symbTextColor="#42f5aa",symbAttrColor=
         intsecColor_="#000000"
         textColor_="#000000"
         busTapColor_="#000000"
+        directivColor_="#000000"
     else:
+        bgColor_=bgColor
         symbColor_=symbColor
         symbTextColor_=symbTextColor
         symbAttrColor_=symbAttrColor
@@ -162,6 +170,7 @@ def colour(isBW=False,symbColor="#000000",symbTextColor="#42f5aa",symbAttrColor=
         intsecColor_=intsecColor
         textColor_=textColor
         busTapColor_=busTapColor
+        directivColor_=directivColor
         
     
 
@@ -185,12 +194,21 @@ class font_width:
     def getBold(self):
         return(self.bold)
 
+def updateGlobalSize(minx, miny, maxx,maxy):
+    global globalSize
+    #print("{} {} {} {}".format(minx, miny, maxx, maxy))
+    
+    globalSize=(min([globalSize[0],minx]), min([globalSize[1],miny]), max([globalSize[2],maxx]), max([globalSize[3],maxy]))
+    #print("=> {} {} {} {}".format(globalSize[0], globalSize[1], globalSize[2], globalSize[3]))
+
 def _line(ix,iy,fx,fy,colour,dash='none'):
     #i=initial and f=final
     dwg.add(dwg.line((ix,iy), (fx,fy), stroke=colour,fill='none',stroke_width=width,stroke_dasharray='{dashes}'.format(dashes=dash)))
+    updateGlobalSize(min([ix,fx]), min([iy,fy]), max([ix,fx]), max([iy,fy]))
+    
+
 
 def _arc(cx1,cy1,cx2,cy2,ix,iy,fx,fy,colour,dash='none'):
-
     #example
 
     #ARC Normal 0 64 32 96 16 96 4 68
@@ -223,6 +241,7 @@ def _arc(cx1,cy1,cx2,cy2,ix,iy,fx,fy,colour,dash='none'):
     #sense is anticlockwise from start to stop
         
     dwg.add(dwg.path(d='M{},{} A{},{} {} {},{} {},{}'.format(ix,iy,rx,ry,0,l,0,fx,fy),stroke=colour,fill='none',stroke_width=width,stroke_dasharray='{dashes}'.format(dashes=dash)))
+    updateGlobalSize(cx-rx,cy-ry,cx+rx,cy+ry)
 
 def _rect(brx,bry,ulx,uly,colour,fillColour,dash='none'):
     if uly>bry:
@@ -235,9 +254,13 @@ def _rect(brx,bry,ulx,uly,colour,fillColour,dash='none'):
         x=ulx
     #br=bottom right and ul=upper left
     dwg.add(dwg.rect((x,y), (abs(ulx-brx),abs(uly-bry)), stroke=colour, fill=fillColour,stroke_width=width,stroke_dasharray='{dashes}'.format(dashes=dash)))
+    updateGlobalSize(min([brx,ulx]), min([bry,uly]), max([brx,ulx]), min([bry,uly]))
+
 
 def _squareSpot(x,y,colour):
     dwg.add(dwg.rect((x-intersection_spot_side/2,y-intersection_spot_side/2),(intersection_spot_side,intersection_spot_side),stroke='none',fill=colour))
+    updateGlobalSize(x-intersection_spot_side/2, y-intersection_spot_side/2, x+intersection_spot_side/2, y+intersection_spot_side/2)
+
 
 def _circle(brx,bry,ulx,uly,colour,dash='none'):
     #br=bottom right and ul=upper left
@@ -249,10 +272,28 @@ def _circle(brx,bry,ulx,uly,colour,dash='none'):
         dwg.add(dwg.circle((cx,cy),rx,stroke=colour,fill='none',stroke_width=width,stroke_dasharray='{dashes}'.format(dashes=dash)))
     else:
         dwg.add(dwg.ellipse((cx,cy),(rx,ry),stroke=colour,fill='none',stroke_width=width,stroke_dasharray='{dashes}'.format(dashes=dash)))
+    updateGlobalSize(brx, bry,ulx,uly)
+    
+        
+        
 def _spot(x,y,colour):
     dwg.add(dwg.circle((x,y),pin_spot_radius,stroke='none',fill=colour,stroke_width=width))
+    updateGlobalSize(x-pin_spot_radius/2, y-pin_spot_radius/2,x+pin_spot_radius/2,y+pin_spot_radius/2)
+    
 def _text(x,y,string,size,weight,family,rAngle,colour):
-    dwg.add(dwg.text(string,(x,y),font_size='{size}px'.format(size=size),font_weight=weight,font_family=family,stroke='none',fill=colour,transform="rotate({rAngle} {xRotate} {yRotate})".format(rAngle=rAngle,xRotate=x,yRotate=y)))
+    str_lines=string.split("\\n")
+    delta_y=0
+    max_width=0
+    blank_width = _tw_in_px(" ",family,_close(size),weight)
+    for str_line in str_lines:
+        str_width=_tw_in_px(str_line,family,_close(size),weight)
+        max_width=max(max_width,str_width)
+        delta_x=len(str_line)-len(str_line.lstrip())
+        dwgText=dwg.text(str_line,(x+delta_x*blank_width,y+delta_y),font_size='{size}px'.format(size=size),font_weight=weight,font_family=family,stroke='none',fill=colour,transform="rotate({rAngle} {xRotate} {yRotate})".format(rAngle=rAngle,xRotate=x,yRotate=y))
+        dwg.add(dwgText)
+        delta_y+=size
+        
+    updateGlobalSize(x+delta_x*blank_width,y-_close(size),x+delta_x*blank_width+max_width,y+_close(size/4.0))
 
 def _container(new1,new2,current_Max,current_Min):
     maxC=max(new1,new2)
@@ -262,6 +303,7 @@ def _container(new1,new2,current_Max,current_Min):
         new_max_min[0]=maxC
     if current_Min>minC:
         new_max_min[1]=minC
+        
     return(new_max_min)
 
 def _close(x):
@@ -273,6 +315,7 @@ def _close(x):
         return(x2)
 
 def _tw_in_px(text,family,size,weight): #text width in pixel, size in px from 1 to 144, weight only normal or bold
+    
     filer=open(sysPath+r'\Resource\widths\\'+str(size)+'.dat','rb')
     try:
         while True:
@@ -291,6 +334,7 @@ def _tw_in_px(text,family,size,weight): #text width in pixel, size in px from 1 
     for character in text:
         width+=(widths[character])
     return(width)#-len(text)*0.5)
+    
 class Coordinate: #Coordinates are in px
     def __init__(self,x=0,y=0):
         self.x=x
@@ -390,6 +434,11 @@ def _leftBottomC(coordinate,textAlignment,textSize,tw):
     elif textAlignment=='VBottom':
         #rightMidC=Coordinate
         leftBottom=Coordinate(coordinate.getX(),coordinate.getY()+tw*0.5)
+    elif textAlignment=='Invisible':
+        #leftMidC=Coordinate
+        leftBottom=Coordinate(coordinate.getX(),coordinate.getY())
+    else:
+        print("textAlignment: "+textAlignment)
     return(leftBottom)
 
 def _pinOffsetC(pinLoc,offset,alignment):
@@ -556,6 +605,7 @@ def _DirFlag(Point,ContainerMax,ContainerMin,directionIndex,flagColour):
 
     
 def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
+    
     lines=[]
     global pIntsecLocations
     #windows={} #attribute_index:Window
@@ -589,6 +639,7 @@ def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
             z=x[:-1].split(' ')
         else:
             z=x.split(' ')
+        
         if z[0] in extract:
             if "LINE"==z[0]:
                 startC=_transform(Coordinate(float(z[2]),float(z[3])),isMirror,symbTheta,symbC)
@@ -691,6 +742,8 @@ def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
                         i+=1
                 except IndexError:
                     textString=textString[:-1]
+
+
                 tw=_tw_in_px(textString,font_family,_close(textSize),font_weight)
                 textAlignment=z[3]
                 leftBottom=_leftBottomC(symbAttrC,textAlignment,textSize,tw)
@@ -719,7 +772,10 @@ def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
                 except NameError:
                     containerXmax=max(leftBottom.getX(),leftBottom.getX()+horz)
                     containerXmin=min(leftBottom.getX(),leftBottom.getX()+horz)
+                
                 _text(leftBottom.getX(),leftBottom.getY(),textString,textSize*4.0/3.0,font_weight,font_family,rAngle,symbTextColor_) #some discripancy here textSize should be in px but given in pt units appears as px
+                        
+                    
             elif "WINDOW"==z[0]:
                 windowIndex=list(windows.keys())
                 if int(z[1]) not in windowIndex:
@@ -742,6 +798,7 @@ def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
                                 i+=1
                         except IndexError:
                             textString=textString[:-1]
+                            
                     tw=_tw_in_px(textString,font_family,textSize,font_weight)
                     leftBottom=_leftBottomC(coordinate,alignment,textSize,tw)
                     if alignment[0]!='V':
@@ -800,6 +857,9 @@ def _symb(symbC,symbTheta,isMirror,windows,windowValues,filepath):
                         if isHeadLine:
                             _HeadlineText(leftBottom,tw,pin_font_size,pinAlignment,symbPinColor_)
         index+=1
+        
+    
+    
 def _refineLine(line):
     out=''
     for char in line:
@@ -811,12 +871,20 @@ def _refineLine(line):
 def draw(spiceFile,saveAddress):
     global pIntsecLocations,pIntsecDirections,nGnCflags
     global dwg
+    global globalSize
+    
+    globalSize=(math.inf, math.inf, -math.inf, -math.inf)
+    
     
     pIntsecLocations={}
     pIntsecDirections={}
     nGnCflags={}
     linecache.clearcache()
-    dwg = svgwrite.Drawing(saveAddress, profile='tiny')
+    
+    dwg = svgwrite.Drawing(saveAddress, style="tiny")
+    #Add background rect
+    dwg.add(dwg.rect(id="svg_backgroud", size=('100%','100%'), fill="#C0C0C0"))
+    
     lineNo=1
     with open(spiceFile,'r') as firstfile, open(r'temp.txt','w') as secondfile:
         for lineX in firstfile:
@@ -824,8 +892,10 @@ def draw(spiceFile,saveAddress):
     firstfile.close()
     secondfile.close()
     try:
+        
         while True:
             x=linecache.getline(r'temp.txt',lineNo)
+            
             if x!="":
                 if x[-1]=='\n':
                     z=x[:-1].split(' ')
@@ -853,38 +923,21 @@ def draw(spiceFile,saveAddress):
                         pIntsecLocations[end]=1
                 elif z[0]=='SYMBOL':
                     filePath=sysPath+r'\Resource\sym\\'+z[1]+'.txt'
-                    symbC=Coordinate(-float(z[2]),-float(z[3]))
-                    orientation=z[4]
-                    if orientation[0]=='M':
-                        isMirror=True
-                    else:
-                        isMirror=False
-                    rAngle=int(orientation[1:])
-                    windows={}
-                    values={}
-                    lineNo+=1
-                    x=linecache.getline(r'temp.txt',lineNo)
-                    try:
-                        if x[-1]=='\n':
-                            z=x[:-1].split(' ')
+                    for file in glob.glob(os.path.join(sysPath,"Resource","sym")+"/**/*", recursive=True):
+                        if file.endswith(z[1]+'.txt'):
+                            filePath=file
+                            break
+                    
+                    if os.path.exists(filePath):
+                        symbC=Coordinate(-float(z[2]),-float(z[3]))
+                        orientation=z[4]
+                        if orientation[0]=='M':
+                            isMirror=True
                         else:
-                            z=x.split(' ')
-                    except IndexError:
-                        break
-                    while z[0]=='WINDOW' or z[0]=='SYMATTR':
-                        if z[0]=='WINDOW':
-                            windows[int(z[1])]=Window(Coordinate(float(z[2]),float(z[3])),z[4],int(z[5]))
-                        elif z[0]=='SYMATTR':
-                            AttributeIndicesX={'InstName':0,'Value':3,'SpiceModel':38,'Value2':123,'SpiceLine':39,'SpiceLine2':40,'Type':1}
-                            attributeValue=''
-                            i=2
-                            try:
-                                while True:
-                                    attributeValue+=(z[i]+' ')
-                                    i+=1
-                            except IndexError:
-                                attributeValue=attributeValue[:-1]
-                            values[AttributeIndicesX[z[1]]]=attributeValue
+                            isMirror=False
+                        rAngle=int(orientation[1:])
+                        windows={}
+                        values={}
                         lineNo+=1
                         x=linecache.getline(r'temp.txt',lineNo)
                         try:
@@ -894,27 +947,60 @@ def draw(spiceFile,saveAddress):
                                 z=x.split(' ')
                         except IndexError:
                             break
-                    lineNo-=2
-                    _symb(symbC,rAngle,isMirror,windows,values,filePath)
+                        while z[0]=='WINDOW' or z[0]=='SYMATTR':
+                            if z[0]=='WINDOW':
+                                windows[int(z[1])]=Window(Coordinate(float(z[2]),float(z[3])),z[4],int(z[5]))
+                            elif z[0]=='SYMATTR':
+                                AttributeIndicesX={'InstName':0,'Value':3,'SpiceModel':38,'Value2':123,'SpiceLine':39,'SpiceLine2':40,'Type':1}
+                                attributeValue=''
+                                i=2
+                                try:
+                                    while True:
+                                        attributeValue+=(z[i]+' ')
+                                        i+=1
+                                except IndexError:
+                                    attributeValue=attributeValue[:-1]
+                                if z[1] in AttributeIndicesX:
+                                    values[AttributeIndicesX[z[1]]]=attributeValue
+                                
+                                    
+                            lineNo+=1
+                            x=linecache.getline(r'temp.txt',lineNo)
+                            try:
+                                if x[-1]=='\n':
+                                    z=x[:-1].split(' ')
+                                else:
+                                    z=x.split(' ')
+                            except IndexError:
+                                break
+                        lineNo-=2
+                        _symb(symbC,rAngle,isMirror,windows,values,filePath)
                 elif z[0]=='TEXT':
                     textLoc=Coordinate(float(z[1]),float(z[2]))
                     textAlignment=z[3]
                     textSize=sizes[int(z[4])]
                     textString=''
                     i=5
+                    isDirective=False
                     try:
                         while True:
                             textString+=(z[i]+' ')
                             i+=1
                     except IndexError:
+                        isDirective=textString[0]=='!'
                         textString=textString[1:-1]
-                    tw=_tw_in_px(textString,font_family,_close(textSize),font_weight)
-                    leftBottom=_leftBottomC(textLoc,textAlignment,textSize,tw)
-                    if textAlignment[0]!='V':
-                        rAngle=0
-                    else:
-                        rAngle=270
-                    _text(leftBottom.getX(),leftBottom.getY(),textString,font_size,font_weight,font_family,rAngle,textColor_)
+                    str_lines=textString.split("\\n")
+                    deltay=0
+                    for str_line in str_lines:
+                        tw=_tw_in_px(str_line,font_family,_close(textSize),font_weight)
+                        leftBottom=_leftBottomC(textLoc,textAlignment,textSize,tw)
+                        if textAlignment[0]!='V':
+                            rAngle=0
+                        else:
+                            rAngle=270
+                        _text(leftBottom.getX(),leftBottom.getY()+deltay,str_line,font_size,font_weight,font_family,rAngle,directiveColor_ if isDirective else textColor_)
+                        deltay+=font_size
+                        
                 elif z[0]=='FLAG' and z[3]!='0' and z[3]!='COM':
                     _flag(float(z[1]),float(z[2]),z[3],flagColor_,0)
                     nGnCflags[Coordinate(float(z[1]),float(z[2]))]=[z[3],'']#alignment]
@@ -932,5 +1018,23 @@ def draw(spiceFile,saveAddress):
     for x in list(pIntsecLocations.keys()):
         if pIntsecLocations[x]>=3:
             _squareSpot(x.getX(),x.getY(),intsecColor_)
-    dwg.save()
+    
+    
+    bb = (globalSize[0],
+          globalSize[1],
+          globalSize[2]-globalSize[0],
+          globalSize[3]-globalSize[1])
+
+    dwg.viewbox(*bb)
+    
+    #dwg.save()
+    #Update size of background rect
+    root = dwg.get_xml()
+    backgroundRec = root.find("./rect[@id='svg_backgroud']")
+    backgroundRec.attrib["x"]=str(bb[0])
+    backgroundRec.attrib["y"]=str(bb[1])
+    backgroundRec.attrib["width"]=str(bb[2])
+    backgroundRec.attrib["height"]=str(bb[3])
+    tree = ET.ElementTree(root)
+    tree.write(saveAddress)
     os.remove(r'temp.txt')
